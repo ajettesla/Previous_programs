@@ -1,0 +1,54 @@
+#!/bin/bash
+
+exefilename=$1
+filename=$(echo $1 | cut -d"." -f1)
+filenamewithS="$filename.s"
+
+rm filename > /dev/null 2>&1
+rm filenamewithS > /dev/null 2>&1
+
+function frontsegment {
+    echo "section .bss
+    data resb 100
+    datapos resb 8" >> $filenamewithS
+
+    allvar=({a..z})
+
+    for ((i = 0; i < 26; i++)); do
+        echo -e "\t${allvar[i]}:\t.quad 0" >> $filenamewithS
+    done
+
+    echo "section .text
+    global _start
+
+_start:" >> $filenamewithS
+}
+
+function makefiles {
+    ./lexyacc-code_lab3/build
+}
+
+function mainsegment {
+    ./bin/calc3i.exe < testprogs/$1 >> $filenamewithS
+}
+
+function endsegment {
+    echo -e "\tmov rax, 60" >> $filenamewithS
+    echo -e "\tmov rdi, 0" >> $filenamewithS
+    echo -e "\tsyscall" >> $filenamewithS
+}
+
+function creatingexe {
+    gcc -c $filenamewithS -o "$filename.o"
+    gcc -no-pie lib/asmfunlib.o "$filename.o" -o $filename
+    rm lib/"$filename.o"
+    rm lib/asmfunlib.o
+}
+
+makefiles
+frontsegment
+mainsegment
+endsegment
+make
+creatingexe
+
